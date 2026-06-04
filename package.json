@@ -1,0 +1,20 @@
+{
+  "name": "mounjaro-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "sst dev",
+    "deploy": "sst deploy",
+    "remove": "sst remove"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.0",
+    "sst": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}
