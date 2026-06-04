@@ -29,7 +29,7 @@ export default $config({
 
     const api = new sst.aws.ApiGatewayV2('Api', {
       cors: {
-        allowOrigins: ['http://localhost:5173'],
+        allowOrigins: ['http://localhost:5173', 'https://mounjaro-companion-gray.vercel.app'],
         allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
         allowHeaders: ['content-type', 'authorization'],
       },
