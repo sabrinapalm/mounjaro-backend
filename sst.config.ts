@@ -29,8 +29,8 @@ export default $config({
 
     const api = new sst.aws.ApiGatewayV2('Api', {
       cors: {
-        allowOrigins: ['http://localhost:5173', 'https://mounjaro-companion-gray.vercel.app'],
-        allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+        allowOrigins: ['http://localhost:5173', 'https://mounjaro-tracksy.vercel.app'],
+        allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS', 'PUT'],
         allowHeaders: ['content-type', 'authorization'],
       },
     });
@@ -150,6 +150,42 @@ export default $config({
         },
       }
     );
+
+    api.route(
+  'GET /profile',
+  {
+    handler: 'src/functions/getProfile.handler',
+    link: [healthTable],
+    environment: {
+      HEALTH_TABLE_NAME: healthTable.name,
+    },
+  },
+  {
+    auth: {
+      jwt: {
+        authorizer: authorizer.id,
+      },
+    },
+  }
+);
+
+  api.route(
+    'PUT /profile',
+    {
+      handler: 'src/functions/updateProfile.handler',
+      link: [healthTable],
+      environment: {
+        HEALTH_TABLE_NAME: healthTable.name,
+      },
+    },
+    {
+      auth: {
+        jwt: {
+          authorizer: authorizer.id,
+        },
+      },
+    }
+  );
 
     return {
       apiUrl: api.url,
