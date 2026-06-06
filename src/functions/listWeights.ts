@@ -10,11 +10,38 @@ type WeightRecord = {
   type: "weight";
   id: string;
   date: string;
+  dateTime?: string;
   weight: number;
   week: number;
   year: number;
   createdAt: string;
   updatedAt: string;
+};
+
+const getWeightTimestamp = (weight: Pick<WeightRecord, "date" | "dateTime" | "id">) => {
+  const timestamp = new Date(weight.dateTime ?? weight.date).getTime();
+
+  if (!Number.isNaN(timestamp)) {
+    return timestamp;
+  }
+
+  const timestampFromId = weight.id.split("_")[1];
+
+  return timestampFromId ? Number(timestampFromId) : 0;
+};
+
+const getWeightDateTime = (weight: Pick<WeightRecord, "date" | "dateTime">) => {
+  if (weight.dateTime) {
+    return weight.dateTime;
+  }
+
+  const parsedDate = new Date(`${weight.date}T00:00:00.000Z`);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return new Date().toISOString();
+  }
+
+  return parsedDate.toISOString();
 };
 
 export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) => {
@@ -34,8 +61,11 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
   const records = (result.Items ?? []) as WeightRecord[];
 
   const weights = records
-    .map(({ userId, recordKey, type, createdAt, updatedAt, ...weight }) => weight)
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    .map(({ userId, recordKey, type, createdAt, updatedAt, ...weight }) => ({
+      ...weight,
+      dateTime: getWeightDateTime(weight),
+    }))
+    .sort((a, b) => getWeightTimestamp(a) - getWeightTimestamp(b));
 
   return jsonResponse(200, {
     weights,
