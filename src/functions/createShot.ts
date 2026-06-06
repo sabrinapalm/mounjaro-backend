@@ -1,9 +1,8 @@
-import type { APIGatewayProxyEventV2WithJWTAuthorizer } from 'aws-lambda';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
-import { z } from 'zod';
-
-import { dynamoDb } from '../shared/dynamoDb.js';
-import { errorResponse, jsonResponse } from '../shared/response.js';
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
+import { z } from "zod";
+import { dynamoDb } from "../shared/dynamoDb.js";
+import { errorResponse, jsonResponse } from "../shared/response.js";
 
 const createShotSchema = z.object({
   id: z.string().min(1).optional(),
@@ -11,6 +10,7 @@ const createShotSchema = z.object({
   dosage: z.coerce.number().positive(),
   week: z.coerce.number().int().min(1).max(53),
   year: z.coerce.number().int().min(2000),
+  injectionSite: z.string().trim().min(1).max(80).optional(),
 });
 
 const parseBody = (body: string | undefined) => {
@@ -30,23 +30,23 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
   const validationResult = createShotSchema.safeParse(parsedBody);
 
   if (!validationResult.success) {
-    return errorResponse(400, 'Invalid shot data');
+    return errorResponse(400, "Invalid shot data");
   }
 
   const body = validationResult.data;
   const now = new Date().toISOString();
-
   const id = body.id ?? `shot_${Date.now()}`;
 
   const shot = {
     userId: event.requestContext.authorizer.jwt.claims.sub,
     recordKey: `shot#${body.date}#${id}`,
-    type: 'shot',
+    type: "shot",
     id,
     date: body.date,
     dosage: body.dosage,
     week: body.week,
     year: body.year,
+    ...(body.injectionSite ? { injectionSite: body.injectionSite } : {}),
     createdAt: now,
     updatedAt: now,
   };
@@ -55,9 +55,8 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
     new PutCommand({
       TableName: process.env.HEALTH_TABLE_NAME,
       Item: shot,
-      ConditionExpression:
-        'attribute_not_exists(userId) AND attribute_not_exists(recordKey)',
-    })
+      ConditionExpression: "attribute_not_exists(userId) AND attribute_not_exists(recordKey)",
+    }),
   );
 
   const { userId, recordKey, type, ...frontendShot } = shot;

@@ -1,12 +1,12 @@
-import type { APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
+import type { APIGatewayProxyStructuredResultV2 } from "aws-lambda";
 
 const defaultHeaders = {
-  'content-type': 'application/json',
+  "content-type": "application/json",
 };
 
 export const jsonResponse = (
   statusCode: number,
-  body: unknown
+  body: unknown,
 ): APIGatewayProxyStructuredResultV2 => ({
   statusCode,
   headers: defaultHeaders,
@@ -15,7 +15,7 @@ export const jsonResponse = (
 
 export const errorResponse = (
   statusCode: number,
-  message: string
+  message: string,
 ): APIGatewayProxyStructuredResultV2 =>
   jsonResponse(statusCode, {
     message,

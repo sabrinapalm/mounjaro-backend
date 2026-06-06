@@ -1,13 +1,13 @@
-import type { APIGatewayProxyEventV2WithJWTAuthorizer } from 'aws-lambda';
-import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand } from "@aws-sdk/lib-dynamodb";
+import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
 
-import { dynamoDb } from '../shared/dynamoDb.js';
-import { jsonResponse } from '../shared/response.js';
+import { dynamoDb } from "../shared/dynamoDb.js";
+import { jsonResponse } from "../shared/response.js";
 
 type WeightRecord = {
   userId: string;
   recordKey: string;
-  type: 'weight';
+  type: "weight";
   id: string;
   date: string;
   weight: number;
@@ -17,21 +17,18 @@ type WeightRecord = {
   updatedAt: string;
 };
 
-export const handler = async (
-  event: APIGatewayProxyEventV2WithJWTAuthorizer
-) => {
+export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) => {
   const userId = event.requestContext.authorizer.jwt.claims.sub;
 
   const result = await dynamoDb.send(
     new QueryCommand({
       TableName: process.env.HEALTH_TABLE_NAME,
-      KeyConditionExpression:
-        'userId = :userId AND begins_with(recordKey, :recordPrefix)',
+      KeyConditionExpression: "userId = :userId AND begins_with(recordKey, :recordPrefix)",
       ExpressionAttributeValues: {
-        ':userId': userId,
-        ':recordPrefix': 'weight#',
+        ":userId": userId,
+        ":recordPrefix": "weight#",
       },
-    })
+    }),
   );
 
   const records = (result.Items ?? []) as WeightRecord[];

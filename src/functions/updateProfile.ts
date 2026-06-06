@@ -1,14 +1,15 @@
-import type { APIGatewayProxyEventV2WithJWTAuthorizer } from 'aws-lambda';
-import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { z } from 'zod';
+import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
+import { z } from "zod";
 
-import { dynamoDb } from '../shared/dynamoDb.js';
-import { errorResponse, jsonResponse } from '../shared/response.js';
+import { dynamoDb } from "../shared/dynamoDb.js";
+import { errorResponse, jsonResponse } from "../shared/response.js";
 
 const updateProfileSchema = z.object({
   displayName: z.string().min(1).max(50),
   goalWeight: z.coerce.number().positive().nullable().optional(),
   startWeight: z.coerce.number().positive().nullable().optional(),
+  height: z.coerce.number().positive().nullable().optional(),
 });
 
 const parseBody = (body: string | undefined) => {
@@ -25,25 +26,24 @@ const parseBody = (body: string | undefined) => {
 
 type ProfileRecord = {
   userId: string;
-  recordKey: 'profile';
-  type: 'profile';
+  recordKey: "profile";
+  type: "profile";
   displayName: string;
   goalWeight: number | null;
   startWeight: number | null;
   createdAt: string;
   updatedAt: string;
+  height: number | null;
 };
 
-export const handler = async (
-  event: APIGatewayProxyEventV2WithJWTAuthorizer
-) => {
+export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) => {
   const userId = event.requestContext.authorizer.jwt.claims.sub;
 
   const parsedBody = parseBody(event.body);
   const validationResult = updateProfileSchema.safeParse(parsedBody);
 
   if (!validationResult.success) {
-    return errorResponse(400, 'Invalid profile data');
+    return errorResponse(400, "Invalid profile data");
   }
 
   const body = validationResult.data;
@@ -54,7 +54,7 @@ export const handler = async (
       TableName: process.env.HEALTH_TABLE_NAME,
       Key: {
         userId,
-        recordKey: 'profile',
+        recordKey: "profile",
       },
       UpdateExpression: `
         SET
@@ -62,26 +62,27 @@ export const handler = async (
           displayName = :displayName,
           goalWeight = :goalWeight,
           startWeight = :startWeight,
+          height = :height,
           createdAt = if_not_exists(createdAt, :createdAt),
           updatedAt = :updatedAt
       `,
       ExpressionAttributeNames: {
-        '#type': 'type',
+        "#type": "type",
       },
       ExpressionAttributeValues: {
-        ':type': 'profile',
-        ':displayName': body.displayName,
-        ':goalWeight': body.goalWeight ?? null,
-        ':startWeight': body.startWeight ?? null,
-        ':createdAt': now,
-        ':updatedAt': now,
+        ":type": "profile",
+        ":displayName": body.displayName,
+        ":goalWeight": body.goalWeight ?? null,
+        ":startWeight": body.startWeight ?? null,
+        ":height": body.height ?? null,
+        ":createdAt": now,
+        ":updatedAt": now,
       },
-      ReturnValues: 'ALL_NEW',
-    })
+      ReturnValues: "ALL_NEW",
+    }),
   );
 
-  const { userId: _userId, recordKey, type, ...profile } =
-    result.Attributes as ProfileRecord;
+  const { userId: _userId, recordKey, type, ...profile } = result.Attributes as ProfileRecord;
 
   return jsonResponse(200, {
     profile,

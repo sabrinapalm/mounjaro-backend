@@ -1,9 +1,9 @@
-import type { APIGatewayProxyEventV2WithJWTAuthorizer } from 'aws-lambda';
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
-import { z } from 'zod';
+import { PutCommand } from "@aws-sdk/lib-dynamodb";
+import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
+import { z } from "zod";
 
-import { dynamoDb } from '../shared/dynamoDb.js';
-import { errorResponse, jsonResponse } from '../shared/response.js';
+import { dynamoDb } from "../shared/dynamoDb.js";
+import { errorResponse, jsonResponse } from "../shared/response.js";
 
 const createWeightSchema = z.object({
   id: z.string().min(1).optional(),
@@ -30,7 +30,7 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
   const validationResult = createWeightSchema.safeParse(parsedBody);
 
   if (!validationResult.success) {
-    return errorResponse(400, 'Invalid weight data');
+    return errorResponse(400, "Invalid weight data");
   }
 
   const body = validationResult.data;
@@ -41,7 +41,7 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
   const weight = {
     userId: event.requestContext.authorizer.jwt.claims.sub,
     recordKey: `weight#${body.date}#${id}`,
-    type: 'weight',
+    type: "weight",
     id,
     date: body.date,
     weight: body.weight,
@@ -55,9 +55,8 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
     new PutCommand({
       TableName: process.env.HEALTH_TABLE_NAME,
       Item: weight,
-      ConditionExpression:
-        'attribute_not_exists(userId) AND attribute_not_exists(recordKey)',
-    })
+      ConditionExpression: "attribute_not_exists(userId) AND attribute_not_exists(recordKey)",
+    }),
   );
 
   const { userId, recordKey, type, ...frontendWeight } = weight;
