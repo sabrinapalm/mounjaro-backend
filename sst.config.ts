@@ -1,14 +1,18 @@
 /// <reference path="./.sst/platform/config.d.ts" />
 
+const REGION = "eu-north-1";
+const LAMBDA_RUNTIME = "nodejs22.x" as const;
+
 export default $config({
   app(input) {
     return {
       name: "mounjaro-api",
       removal: input?.stage === "production" ? "retain" : "remove",
       home: "aws",
-      region: "eu-north-1",
+      region: REGION,
     };
   },
+
   async run() {
     const userPool = new sst.aws.CognitoUserPool("UserPool", {
       usernames: ["email"],
@@ -38,177 +42,113 @@ export default $config({
     const authorizer = api.addAuthorizer({
       name: "CognitoAuthorizer",
       jwt: {
-        issuer: $interpolate`https://cognito-idp.eu-north-1.amazonaws.com/${userPool.id}`,
+        issuer: $interpolate`https://cognito-idp.${REGION}.amazonaws.com/${userPool.id}`,
         audiences: [userPoolClient.id],
       },
     });
 
+    const functionDefaults = {
+      runtime: LAMBDA_RUNTIME,
+      link: [healthTable],
+      environment: {
+        HEALTH_TABLE_NAME: healthTable.name,
+      },
+    };
+
+    const authOptions = {
+      auth: {
+        jwt: {
+          authorizer: authorizer.id,
+        },
+      },
+    };
+
     api.route(
       "POST /shots",
       {
+        ...functionDefaults,
         handler: "src/functions/createShot.handler",
-        link: [healthTable],
-        environment: {
-          HEALTH_TABLE_NAME: healthTable.name,
-        },
       },
-      {
-        auth: {
-          jwt: {
-            authorizer: authorizer.id,
-          },
-        },
-      },
+      authOptions,
     );
 
     api.route(
       "GET /shots",
       {
+        ...functionDefaults,
         handler: "src/functions/listShots.handler",
-        link: [healthTable],
-        environment: {
-          HEALTH_TABLE_NAME: healthTable.name,
-        },
       },
-      {
-        auth: {
-          jwt: {
-            authorizer: authorizer.id,
-          },
-        },
-      },
+      authOptions,
     );
 
     api.route(
       "POST /weights",
       {
+        ...functionDefaults,
         handler: "src/functions/createWeight.handler",
-        link: [healthTable],
-        environment: {
-          HEALTH_TABLE_NAME: healthTable.name,
-        },
       },
-      {
-        auth: {
-          jwt: {
-            authorizer: authorizer.id,
-          },
-        },
-      },
+      authOptions,
     );
 
     api.route(
       "GET /weights",
       {
+        ...functionDefaults,
         handler: "src/functions/listWeights.handler",
-        link: [healthTable],
-        environment: {
-          HEALTH_TABLE_NAME: healthTable.name,
-        },
       },
-      {
-        auth: {
-          jwt: {
-            authorizer: authorizer.id,
-          },
-        },
-      },
+      authOptions,
     );
 
     api.route(
       "DELETE /shots/{id}",
       {
+        ...functionDefaults,
         handler: "src/functions/deleteShot.handler",
-        link: [healthTable],
-        environment: {
-          HEALTH_TABLE_NAME: healthTable.name,
-        },
       },
-      {
-        auth: {
-          jwt: {
-            authorizer: authorizer.id,
-          },
-        },
-      },
+      authOptions,
     );
 
     api.route(
       "DELETE /weights/{id}",
       {
+        ...functionDefaults,
         handler: "src/functions/deleteWeight.handler",
-        link: [healthTable],
-        environment: {
-          HEALTH_TABLE_NAME: healthTable.name,
-        },
       },
-      {
-        auth: {
-          jwt: {
-            authorizer: authorizer.id,
-          },
-        },
-      },
+      authOptions,
     );
 
     api.route(
       "GET /profile",
       {
+        ...functionDefaults,
         handler: "src/functions/getProfile.handler",
-        link: [healthTable],
-        environment: {
-          HEALTH_TABLE_NAME: healthTable.name,
-        },
       },
-      {
-        auth: {
-          jwt: {
-            authorizer: authorizer.id,
-          },
-        },
-      },
+      authOptions,
     );
 
     api.route(
       "PUT /profile",
       {
+        ...functionDefaults,
         handler: "src/functions/updateProfile.handler",
-        link: [healthTable],
-        environment: {
-          HEALTH_TABLE_NAME: healthTable.name,
-        },
       },
-      {
-        auth: {
-          jwt: {
-            authorizer: authorizer.id,
-          },
-        },
-      },
+      authOptions,
     );
 
     api.route(
       "PATCH /profile/goal-weight",
       {
+        ...functionDefaults,
         handler: "src/functions/updateGoalWeight.handler",
-        link: [healthTable],
-        environment: {
-          HEALTH_TABLE_NAME: healthTable.name,
-        },
       },
-      {
-        auth: {
-          jwt: {
-            authorizer: authorizer.id,
-          },
-        },
-      },
+      authOptions,
     );
 
     return {
       apiUrl: api.url,
       userPoolId: userPool.id,
       userPoolClientId: userPoolClient.id,
+      lambdaRuntime: LAMBDA_RUNTIME,
     };
   },
 });
