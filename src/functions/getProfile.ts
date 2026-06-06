@@ -1,7 +1,10 @@
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
 import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
+
 import { dynamoDb } from "../shared/dynamoDb.js";
 import { jsonResponse } from "../shared/response.js";
+
+type UnitSystem = "metric" | "imperial";
 
 type ProfileRecord = {
   userId: string;
@@ -10,9 +13,10 @@ type ProfileRecord = {
   displayName: string;
   goalWeight: number | null;
   startWeight: number | null;
+  height: number | null;
+  unitSystem?: UnitSystem;
   createdAt: string;
   updatedAt: string;
-  height: number | null;
 };
 
 export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) => {
@@ -37,6 +41,9 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
   const { userId: _userId, recordKey, type, ...profile } = result.Item as ProfileRecord;
 
   return jsonResponse(200, {
-    profile,
+    profile: {
+      ...profile,
+      unitSystem: profile.unitSystem ?? "metric",
+    },
   });
 };

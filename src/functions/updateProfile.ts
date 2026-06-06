@@ -10,7 +10,10 @@ const updateProfileSchema = z.object({
   goalWeight: z.coerce.number().positive().nullable().optional(),
   startWeight: z.coerce.number().positive().nullable().optional(),
   height: z.coerce.number().positive().nullable().optional(),
+  unitSystem: z.enum(["metric", "imperial"]).optional(),
 });
+
+type UnitSystem = "metric" | "imperial";
 
 const parseBody = (body: string | undefined) => {
   if (!body) {
@@ -31,9 +34,10 @@ type ProfileRecord = {
   displayName: string;
   goalWeight: number | null;
   startWeight: number | null;
+  height: number | null;
+  unitSystem: UnitSystem;
   createdAt: string;
   updatedAt: string;
-  height: number | null;
 };
 
 export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) => {
@@ -63,6 +67,7 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
           goalWeight = :goalWeight,
           startWeight = :startWeight,
           height = :height,
+          unitSystem = :unitSystem,
           createdAt = if_not_exists(createdAt, :createdAt),
           updatedAt = :updatedAt
       `,
@@ -75,6 +80,7 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
         ":goalWeight": body.goalWeight ?? null,
         ":startWeight": body.startWeight ?? null,
         ":height": body.height ?? null,
+        ":unitSystem": body.unitSystem ?? "metric",
         ":createdAt": now,
         ":updatedAt": now,
       },
