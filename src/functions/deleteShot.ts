@@ -7,29 +7,46 @@ import { errorResponse, jsonResponse } from "../shared/response.js";
 export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) => {
   const userId = event.requestContext.authorizer.jwt.claims.sub;
   const id = event.pathParameters?.id;
-  const date = event.queryStringParameters?.date;
+  const dateTime = event.queryStringParameters?.dateTime;
 
   if (!id) {
     return errorResponse(400, "Shot id is required");
   }
 
-  if (!date) {
-    return errorResponse(400, "Shot date is required");
+  if (!dateTime) {
+    return errorResponse(400, "Shot date time is required");
   }
 
-  await dynamoDb.send(
-    new DeleteCommand({
-      TableName: process.env.HEALTH_TABLE_NAME,
-      Key: {
-        userId,
-        recordKey: `shot#${date}#${id}`,
-      },
-      ConditionExpression: "attribute_exists(userId) AND attribute_exists(recordKey)",
-    }),
-  );
+  const recordKey = `shot#${dateTime}#${id}`;
 
-  return jsonResponse(200, {
-    id,
-    deleted: true,
-  });
+  try {
+    await dynamoDb.send(
+      new DeleteCommand({
+        TableName: process.env.HEALTH_TABLE_NAME,
+        Key: {
+          userId,
+          recordKey,
+        },
+        ConditionExpression: "attribute_exists(userId) AND attribute_exists(recordKey)",
+      }),
+    );
+
+    return jsonResponse(200, {
+      id,
+      deleted: true,
+    });
+  } catch (err) {
+    console.error("Failed to delete shot", {
+      id,
+      dateTime,
+      recordKey,
+      error: err,
+    });
+
+    if (err instanceof Error && err.name === "ConditionalCheckFailedException") {
+      return errorResponse(404, "Shot not found");
+    }
+
+    return errorResponse(500, "Unable to delete shot");
+  }
 };

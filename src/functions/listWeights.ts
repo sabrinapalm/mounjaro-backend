@@ -1,47 +1,32 @@
 import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 
 import { dynamoDb } from "../shared/dynamoDb.js";
 import { jsonResponse } from "../shared/response.js";
+
+dayjs.extend(utc);
 
 type WeightRecord = {
   userId: string;
   recordKey: string;
   type: "weight";
   id: string;
-  date: string;
-  dateTime?: string;
+  dateTime: string;
   weight: number;
-  week: number;
-  year: number;
   createdAt: string;
   updatedAt: string;
 };
 
-const getWeightTimestamp = (weight: Pick<WeightRecord, "date" | "dateTime" | "id">) => {
-  const timestamp = new Date(weight.dateTime ?? weight.date).getTime();
+const getDateTimeTimestamp = (dateTime: string) => {
+  const parsedDateTime = dayjs.utc(dateTime);
 
-  if (!Number.isNaN(timestamp)) {
-    return timestamp;
+  if (!parsedDateTime.isValid()) {
+    return 0;
   }
 
-  const timestampFromId = weight.id.split("_")[1];
-
-  return timestampFromId ? Number(timestampFromId) : 0;
-};
-
-const getWeightDateTime = (weight: Pick<WeightRecord, "date" | "dateTime">) => {
-  if (weight.dateTime) {
-    return weight.dateTime;
-  }
-
-  const parsedDate = new Date(`${weight.date}T00:00:00.000Z`);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return new Date().toISOString();
-  }
-
-  return parsedDate.toISOString();
+  return parsedDateTime.valueOf();
 };
 
 export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) => {
@@ -61,11 +46,11 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
   const records = (result.Items ?? []) as WeightRecord[];
 
   const weights = records
-    .map(({ userId, recordKey, type, createdAt, updatedAt, ...weight }) => ({
-      ...weight,
-      dateTime: getWeightDateTime(weight),
-    }))
-    .sort((a, b) => getWeightTimestamp(a) - getWeightTimestamp(b));
+    .map(({ userId, recordKey, type, createdAt, updatedAt, ...weight }) => weight)
+    .sort(
+      (firstWeight, secondWeight) =>
+        getDateTimeTimestamp(secondWeight.dateTime) - getDateTimeTimestamp(firstWeight.dateTime),
+    );
 
   return jsonResponse(200, {
     weights,

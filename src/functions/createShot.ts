@@ -1,16 +1,39 @@
 import { PutCommand } from "@aws-sdk/lib-dynamodb";
 import type { APIGatewayProxyEventV2WithJWTAuthorizer } from "aws-lambda";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
 import { z } from "zod";
 import { dynamoDb } from "../shared/dynamoDb.js";
 import { errorResponse, jsonResponse } from "../shared/response.js";
+import { sideEffectSchema } from "../shared/schema.js";
+
+dayjs.extend(utc);
+
+const injectionSiteSchema = z.enum([
+  "abdomen_left",
+  "abdomen_right",
+  "left_thigh",
+  "right_thigh",
+  "left_upper_arm",
+  "right_upper_arm",
+  "other",
+]);
+
+const optionalTrimmedString = (maxLength: number) =>
+  z
+    .string()
+    .trim()
+    .max(maxLength)
+    .transform((value) => (value.length > 0 ? value : undefined))
+    .optional();
 
 const createShotSchema = z.object({
   id: z.string().min(1).optional(),
-  date: z.string().min(1),
+  dateTime: z.string().datetime(),
   dosage: z.coerce.number().positive(),
-  week: z.coerce.number().int().min(1).max(53),
-  year: z.coerce.number().int().min(2000),
-  injectionSite: z.string().trim().min(1).max(80).optional(),
+  injectionSite: injectionSiteSchema.optional(),
+  notes: optionalTrimmedString(250),
+  sideEffects: z.array(sideEffectSchema).max(20).optional(),
 });
 
 const parseBody = (body: string | undefined) => {
@@ -25,6 +48,16 @@ const parseBody = (body: string | undefined) => {
   }
 };
 
+const parseShotDateTime = (dateTime: string) => {
+  const parsedDateTime = dayjs.utc(dateTime);
+
+  if (!parsedDateTime.isValid()) {
+    return null;
+  }
+
+  return parsedDateTime;
+};
+
 export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) => {
   const parsedBody = parseBody(event.body);
   const validationResult = createShotSchema.safeParse(parsedBody);
@@ -34,19 +67,26 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
   }
 
   const body = validationResult.data;
-  const now = new Date().toISOString();
-  const id = body.id ?? `shot_${Date.now()}`;
+  const shotDateTime = parseShotDateTime(body.dateTime);
+
+  if (!shotDateTime) {
+    return errorResponse(400, "Invalid shot date time");
+  }
+
+  const now = dayjs().toISOString();
+  const id = body.id ?? `shot_${crypto.randomUUID()}`;
+  const dateTime = shotDateTime.toISOString();
 
   const shot = {
     userId: event.requestContext.authorizer.jwt.claims.sub,
-    recordKey: `shot#${body.date}#${id}`,
+    recordKey: `shot#${dateTime}#${id}`,
     type: "shot",
     id,
-    date: body.date,
+    dateTime,
     dosage: body.dosage,
-    week: body.week,
-    year: body.year,
     ...(body.injectionSite ? { injectionSite: body.injectionSite } : {}),
+    ...(body.sideEffects?.length ? { sideEffects: body.sideEffects } : {}),
+    ...(body.notes ? { notes: body.notes } : {}),
     createdAt: now,
     updatedAt: now,
   };

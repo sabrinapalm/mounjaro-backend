@@ -144,6 +144,33 @@ export default $config({
       authOptions,
     );
 
+    api.route(
+      "POST /check-ins",
+      {
+        ...functionDefaults,
+        handler: "src/functions/createCheckIn.handler",
+      },
+      authOptions,
+    );
+
+    api.route(
+      "GET /check-ins",
+      {
+        ...functionDefaults,
+        handler: "src/functions/listCheckIns.handler",
+      },
+      authOptions,
+    );
+
+    api.route(
+      "DELETE /check-ins/{id}",
+      {
+        ...functionDefaults,
+        handler: "src/functions/deleteCheckIn.handler",
+      },
+      authOptions,
+    );
+
     return {
       apiUrl: api.url,
       userPoolId: userPool.id,

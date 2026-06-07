@@ -7,14 +7,14 @@ import { errorResponse, jsonResponse } from "../shared/response.js";
 export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) => {
   const userId = event.requestContext.authorizer.jwt.claims.sub;
   const id = event.pathParameters?.id;
-  const date = event.queryStringParameters?.date;
+  const dateTime = event.queryStringParameters?.dateTime;
 
   if (!id) {
     return errorResponse(400, "Weight id is required");
   }
 
-  if (!date) {
-    return errorResponse(400, "Weight date is required");
+  if (!dateTime) {
+    return errorResponse(400, "Weight date time is required");
   }
 
   await dynamoDb.send(
@@ -22,7 +22,7 @@ export const handler = async (event: APIGatewayProxyEventV2WithJWTAuthorizer) =>
       TableName: process.env.HEALTH_TABLE_NAME,
       Key: {
         userId,
-        recordKey: `weight#${date}#${id}`,
+        recordKey: `weight#${dateTime}#${id}`,
       },
       ConditionExpression: "attribute_exists(userId) AND attribute_exists(recordKey)",
     }),
